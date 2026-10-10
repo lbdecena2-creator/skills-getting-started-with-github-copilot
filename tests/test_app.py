@@ -58,3 +58,44 @@ def test_activity_cannot_overfill():
 
     assert response.status_code == 400
     assert "full" in response.json()["detail"].lower()
+
+
+def test_participant_can_unregister():
+    response = client.delete(
+        "/activities/Chess Club/signup?email=MICHAEL%40mergington.edu"
+    )
+
+    assert response.status_code == 200
+    assert app_module.activities["Chess Club"]["participants"] == [
+        "daniel@mergington.edu"
+    ]
+
+
+def test_unregister_rejects_unknown_participant():
+    response = client.delete(
+        "/activities/Chess Club/signup?email=unknown%40mergington.edu"
+    )
+
+    assert response.status_code == 404
+    assert "not signed up" in response.json()["detail"].lower()
+
+
+def test_unregister_rejects_unknown_activity():
+    response = client.delete(
+        "/activities/Unknown%20Club/signup?email=student%40mergington.edu"
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Activity not found"
+
+
+def test_activities_refresh_after_signup_without_cache():
+    signup_response = client.post(
+        "/activities/Chess Club/signup?email=newstudent%40mergington.edu"
+    )
+    activities_response = client.get("/activities")
+
+    assert signup_response.status_code == 200
+    assert activities_response.status_code == 200
+    assert activities_response.headers["cache-control"] == "no-store"
+    assert "newstudent@mergington.edu" in activities_response.json()["Chess Club"]["participants"]
